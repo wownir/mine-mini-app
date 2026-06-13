@@ -1,0 +1,1329 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>⛏ Шахта — Завод</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+/* ══════════════════════════════════════════════
+   DESIGN TOKENS — Underground Dark Forge
+   Palette: deep coal black + molten amber + ore cyan
+   ══════════════════════════════════════════════ */
+:root {
+  --bg:         #0d0e12;
+  --bg-card:    #16181f;
+  --bg-panel:   #1e2029;
+  --border:     #2a2d3a;
+  --amber:      #f5a623;
+  --amber-dim:  #c47d0e;
+  --amber-glow: rgba(245,166,35,0.18);
+  --cyan:       #3dd9d6;
+  --cyan-dim:   #1a8b89;
+  --red:        #e84040;
+  --green:      #3ecf6e;
+  --purple:     #9b59d8;
+  --text:       #e8e9ef;
+  --text-dim:   #7a7e94;
+  --text-muted: #3f4257;
+  --radius:     14px;
+  --radius-sm:  8px;
+  --tab-h:      64px;
+  --header-h:   54px;
+  --font:       -apple-system, 'SF Pro Display', 'Segoe UI', sans-serif;
+}
+
+/* ── RESET ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(--text); font-family: var(--font); -webkit-tap-highlight-color: transparent; }
+button { border: none; cursor: pointer; font-family: var(--font); }
+input  { font-family: var(--font); }
+
+/* ── LAYOUT ── */
+#app   { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
+#header{ height: var(--header-h); display: flex; align-items: center; padding: 0 16px; gap: 12px; background: var(--bg-card); border-bottom: 1px solid var(--border); flex-shrink: 0; position: relative; z-index: 10; }
+#pages { flex: 1; overflow: hidden; position: relative; }
+.page  { position: absolute; inset: 0; overflow-y: auto; padding: 12px 14px calc(var(--tab-h) + 12px); display: none; animation: fadein .18s ease; }
+.page.active { display: block; }
+#tabs  { height: var(--tab-h); display: flex; background: var(--bg-card); border-top: 1px solid var(--border); flex-shrink: 0; }
+
+@keyframes fadein { from { opacity:0; transform: translateY(6px); } to { opacity:1; transform: none; } }
+
+/* ── HEADER ── */
+.hdr-avatar { width:36px; height:36px; border-radius:50%; background: linear-gradient(135deg, var(--amber), var(--amber-dim)); display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0; }
+.hdr-info   { flex:1; min-width:0; }
+.hdr-name   { font-size:14px; font-weight:700; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.hdr-sub    { font-size:11px; color:var(--text-dim); margin-top:1px; }
+.hdr-coins  { display:flex; align-items:center; gap:5px; background:var(--amber-glow); border:1px solid var(--amber-dim); border-radius:20px; padding:5px 10px; }
+.hdr-coins span { font-size:13px; font-weight:700; color:var(--amber); }
+.hdr-online { width:8px; height:8px; border-radius:50%; background:var(--green); box-shadow:0 0 6px var(--green); flex-shrink:0; }
+
+/* ── TABS ── */
+.tab { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; background:none; color:var(--text-muted); transition: color .15s, background .15s; position:relative; }
+.tab .tab-icon { font-size:22px; line-height:1; }
+.tab .tab-lbl  { font-size:9px; font-weight:600; text-transform:uppercase; letter-spacing:.4px; }
+.tab.active { color:var(--amber); }
+.tab.active::after { content:''; position:absolute; top:0; left:20%; right:20%; height:2px; background:var(--amber); border-radius:0 0 2px 2px; box-shadow:0 0 8px var(--amber); }
+.tab:active { background:rgba(255,255,255,.04); }
+
+/* ── ШАХТА ── */
+.mine-hero { position:relative; background:linear-gradient(160deg,#1a1c28 0%,#0f1016 100%); border:1px solid var(--border); border-radius:var(--radius); padding:18px; margin-bottom:12px; overflow:hidden; }
+.mine-hero::before { content:''; position:absolute; inset:0; background:radial-gradient(ellipse at 50% 120%, rgba(245,166,35,.08) 0%, transparent 70%); pointer-events:none; }
+.mine-shaft { text-align:center; margin-bottom:16px; }
+.shaft-anim { font-size:64px; display:block; animation: shaftpulse 3s ease-in-out infinite; filter:drop-shadow(0 0 12px rgba(245,166,35,.4)); }
+@keyframes shaftpulse { 0%,100%{transform:translateY(0) scale(1);} 50%{transform:translateY(-4px) scale(1.04);} }
+
+.mine-stats { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:14px; }
+.mine-stat  { background:rgba(255,255,255,.03); border:1px solid var(--border); border-radius:var(--radius-sm); padding:10px; text-align:center; }
+.mine-stat .ms-val { font-size:16px; font-weight:800; color:var(--amber); }
+.mine-stat .ms-lbl { font-size:10px; color:var(--text-dim); margin-top:2px; }
+
+.xp-bar-wrap { margin-bottom:4px; }
+.xp-bar-lbl  { display:flex; justify-content:space-between; font-size:11px; color:var(--text-dim); margin-bottom:5px; }
+.xp-bar      { height:6px; background:var(--border); border-radius:3px; overflow:hidden; }
+.xp-fill     { height:100%; background:linear-gradient(90deg, var(--cyan-dim), var(--cyan)); border-radius:3px; transition:width .6s ease; box-shadow:0 0 6px var(--cyan); }
+
+.btn-mine { width:100%; padding:16px; border-radius:var(--radius); font-size:17px; font-weight:800; background:linear-gradient(135deg, #c47d0e, var(--amber)); color:#0d0e12; letter-spacing:.3px; position:relative; overflow:hidden; transition:transform .1s, box-shadow .2s; box-shadow:0 4px 20px rgba(245,166,35,.35); }
+.btn-mine:active { transform:scale(.97); box-shadow:0 2px 10px rgba(245,166,35,.2); }
+.btn-mine::after { content:''; position:absolute; inset:0; background:linear-gradient(180deg,rgba(255,255,255,.12) 0%,transparent 50%); pointer-events:none; }
+.btn-mine.cooldown { background:linear-gradient(135deg,#2a2d3a,#1e2029); color:var(--text-dim); box-shadow:none; }
+
+.mine-result { border-radius:var(--radius); padding:14px; margin-top:10px; border:1px solid; display:none; }
+.mine-result.show { display:block; animation:popIn .25s cubic-bezier(.34,1.56,.64,1); }
+@keyframes popIn { from{transform:scale(.92);opacity:0;} to{transform:scale(1);opacity:1;} }
+.mine-result.common  { background:rgba(122,126,148,.07); border-color:#3f4257; }
+.mine-result.rare    { background:rgba(61,217,214,.06); border-color:var(--cyan-dim); }
+.mine-result.epic    { background:rgba(155,89,216,.08); border-color:var(--purple); }
+.mine-result.legend  { background:rgba(245,166,35,.08); border-color:var(--amber-dim); box-shadow:0 0 20px rgba(245,166,35,.12); }
+
+.result-ore  { font-size:28px; }
+.result-name { font-size:15px; font-weight:700; margin:6px 0 2px; }
+.result-val  { font-size:13px; color:var(--amber); }
+.result-xp   { font-size:12px; color:var(--cyan); }
+.result-event{ font-size:11px; color:var(--green); margin-top:4px; background:rgba(62,207,110,.08); border-radius:6px; padding:3px 8px; display:inline-block; }
+
+.event-banner { background:linear-gradient(90deg,rgba(155,89,216,.15),rgba(245,166,35,.1)); border:1px solid var(--purple); border-radius:var(--radius-sm); padding:10px 12px; margin-bottom:10px; display:none; }
+.event-banner.show { display:flex; align-items:center; gap:10px; }
+.ev-icon { font-size:22px; flex-shrink:0; }
+.ev-info { flex:1; min-width:0; }
+.ev-name { font-size:13px; font-weight:700; color:var(--purple); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.ev-timer{ font-size:11px; color:var(--text-dim); margin-top:2px; }
+.ev-bar  { width:50px; height:4px; background:var(--border); border-radius:2px; margin-top:4px; }
+.ev-fill { height:100%; background:var(--purple); border-radius:2px; }
+
+.mine-cd-ring { display:none; width:100%; justify-content:center; margin-top:8px; }
+.mine-cd-ring.show { display:flex; }
+.cd-text { font-size:12px; color:var(--text-muted); }
+
+/* ── ІНВЕНТАР / БІРЖА ── */
+.section-title { font-size:17px; font-weight:800; color:var(--text); margin-bottom:10px; display:flex; align-items:center; gap:8px; }
+.badge { background:var(--amber); color:#0d0e12; border-radius:10px; padding:1px 7px; font-size:11px; font-weight:800; }
+
+.inv-cap { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-sm); padding:10px 14px; margin-bottom:10px; }
+.inv-bar-row { display:flex; align-items:center; gap:10px; }
+.inv-bar-bg  { flex:1; height:8px; background:var(--border); border-radius:4px; overflow:hidden; }
+.inv-bar-fill{ height:100%; border-radius:4px; transition:width .4s; }
+.inv-bar-lbl { font-size:12px; color:var(--text-dim); white-space:nowrap; }
+
+.inv-list     { display:flex; flex-direction:column; gap:6px; }
+.inv-item     { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-sm); padding:11px 13px; display:flex; align-items:center; gap:10px; }
+.inv-item .ore-icon { font-size:26px; flex-shrink:0; }
+.inv-item .ore-info { flex:1; min-width:0; }
+.inv-item .ore-name { font-size:13px; font-weight:700; color:var(--text); }
+.inv-item .ore-cnt  { font-size:11px; color:var(--text-dim); }
+.inv-item .ore-val  { font-size:13px; font-weight:700; color:var(--amber); text-align:right; }
+.inv-actions { display:flex; gap:8px; margin-top:10px; }
+.btn-sell-all{ flex:1; padding:12px; border-radius:var(--radius-sm); background:var(--amber-glow); border:1px solid var(--amber-dim); color:var(--amber); font-weight:700; font-size:14px; width:100%; text-align:center; }
+.btn-sell-all:active { opacity:.8; }
+.inv-empty { text-align:center; padding:40px 0; color:var(--text-muted); }
+.inv-empty .ie-icon { font-size:48px; margin-bottom:12px; display:block; }
+
+.market-card { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); padding:14px; margin-bottom:10px; }
+.market-rate { display:flex; align-items:baseline; gap:8px; margin-bottom:10px; }
+.rate-val    { font-size:32px; font-weight:900; color:var(--amber); line-height:1; }
+.rate-x      { font-size:14px; color:var(--text-dim); }
+.rate-status { font-size:12px; font-weight:700; padding:3px 8px; border-radius:10px; }
+.rate-status.boom   { background:rgba(62,207,110,.12); color:var(--green); }
+.rate-status.crash  { background:rgba(232,64,64,.12); color:var(--red); }
+.rate-status.stable { background:rgba(61,217,214,.08); color:var(--cyan); }
+
+.spark-chart { display:flex; align-items:flex-end; gap:3px; height:36px; margin:10px 0; }
+.spark-bar   { flex:1; background:var(--amber-dim); border-radius:2px 2px 0 0; min-height:3px; transition:height .3s; }
+.spark-bar.active { background:var(--amber); }
+.market-tip  { font-size:11px; color:var(--text-dim); background:rgba(255,255,255,.03); padding:8px 10px; border-radius:var(--radius-sm); border-left:2px solid var(--amber-dim); }
+
+/* ── ПРОФІЛЬ ── */
+.profile-hero { background:linear-gradient(135deg,#16181f,#1a1c28); border:1px solid var(--border); border-radius:var(--radius); padding:18px; text-align:center; margin-bottom:12px; position:relative; overflow:hidden; }
+.profile-hero::before { content:''; position:absolute; top:-40px; left:50%; transform:translateX(-50%); width:200px; height:200px; border-radius:50%; background:radial-gradient(var(--amber-glow),transparent 70%); pointer-events:none; }
+.profile-avatar { font-size:52px; display:block; margin-bottom:8px; filter:drop-shadow(0 4px 12px rgba(245,166,35,.3)); }
+.profile-name   { font-size:20px; font-weight:900; color:var(--text); }
+.profile-prefix { font-size:12px; color:var(--amber); margin-bottom:8px; }
+.profile-level  { display:inline-flex; align-items:center; gap:6px; background:var(--amber-glow); border:1px solid var(--amber-dim); border-radius:20px; padding:4px 12px; }
+.profile-level span { font-size:13px; font-weight:700; color:var(--amber); }
+
+.stats-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px; }
+.stat-card  { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-sm); padding:12px; text-align:center; }
+.stat-card .sv { font-size:18px; font-weight:800; color:var(--text); }
+.stat-card .sl { font-size:10px; color:var(--text-dim); margin-top:2px; text-transform:uppercase; letter-spacing:.4px; }
+
+.achievements-list { display:flex; flex-direction:column; gap:6px; }
+.ach-item { display:flex; align-items:center; gap:10px; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-sm); padding:10px 12px; }
+.ach-icon { font-size:22px; flex-shrink:0; }
+.ach-info .an { font-size:13px; font-weight:700; }
+.ach-info .ad { font-size:11px; color:var(--text-dim); margin-top:1px; }
+.ach-item.locked { opacity:.4; }
+.ach-check { margin-left:auto; font-size:16px; }
+
+/* ── МАГАЗИН ── */
+.shop-cats { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:14px; }
+.shop-cat  { background:var(--bg-card); border:2px solid var(--border); border-radius:var(--radius); padding:14px; text-align:center; cursor:pointer; transition:border-color .15s, background .15s; }
+.shop-cat.active  { border-color:var(--amber); background:var(--amber-glow); }
+.shop-cat .sc-ico { font-size:28px; display:block; margin-bottom:5px; }
+.shop-cat .sc-lbl { font-size:12px; font-weight:700; color:var(--text-dim); }
+.shop-cat.active .sc-lbl { color:var(--amber); }
+
+.shop-items  { display:flex; flex-direction:column; gap:8px; }
+.shop-item   { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-sm); padding:12px 13px; display:flex; align-items:center; gap:10px; }
+.shop-item.locked { opacity:.5; }
+.si-icon { font-size:28px; flex-shrink:0; }
+.si-body { flex:1; min-width:0; }
+.si-name { font-size:13px; font-weight:700; color:var(--text); }
+.si-sub  { font-size:11px; color:var(--text-dim); margin-top:2px; }
+.si-req  { font-size:10px; color:var(--red); margin-top:2px; }
+.btn-buy { padding:8px 14px; border-radius:var(--radius-sm); background:var(--amber); color:#0d0e12; font-size:12px; font-weight:800; white-space:nowrap; flex-shrink:0; transition:opacity .15s; }
+.btn-buy:active { opacity:.8; }
+.btn-buy.locked { background:var(--border); color:var(--text-muted); }
+
+/* ── АКТИВНОСТІ ── */
+.act-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px; }
+.act-card { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); padding:16px 12px; text-align:center; cursor:pointer; transition:border-color .15s, transform .1s; position:relative; overflow:hidden; }
+.act-card:active { transform:scale(.97); }
+.act-card::before { content:''; position:absolute; inset:0; opacity:0; transition:opacity .15s; }
+.act-card.amber-g::before { background:radial-gradient(ellipse at 50% 100%,var(--amber-glow),transparent); }
+.act-card.cyan-g::before  { background:radial-gradient(ellipse at 50% 100%,rgba(61,217,214,.1),transparent); }
+.act-card.purple-g::before{ background:radial-gradient(ellipse at 50% 100%,rgba(155,89,216,.1),transparent); }
+.act-card.green-g::before { background:radial-gradient(ellipse at 50% 100%,rgba(62,207,110,.1),transparent); }
+.act-card:active::before   { opacity:1; }
+.act-icon { font-size:36px; display:block; margin-bottom:8px; }
+.act-title{ font-size:13px; font-weight:800; color:var(--text); }
+.act-sub  { font-size:11px; color:var(--text-dim); margin-top:3px; }
+.act-badge{ position:absolute; top:8px; right:8px; background:var(--red); color:#fff; font-size:10px; font-weight:800; border-radius:8px; padding:1px 5px; }
+
+/* Modal layout */
+.modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:100; display:none; align-items:flex-end; }
+.modal-overlay.open { display:flex; }
+.modal-sheet { background:var(--bg-panel); border-radius:20px 20px 0 0; width:100%; padding:20px 18px 32px; animation:slideup .25s cubic-bezier(.34,1.56,.64,1); position:relative; max-height:85vh; overflow-y:auto; }
+@keyframes slideup { from{transform:translateY(100%);} to{transform:translateY(0);} }
+.modal-handle { width:36px; height:4px; background:var(--border); border-radius:2px; margin:0 auto 16px; }
+.modal-title  { font-size:18px; font-weight:900; margin-bottom:16px; text-align:center; }
+
+.slot-display { display:flex; justify-content:center; gap:10px; margin:16px 0; }
+.slot-reel    { width:72px; height:80px; background:var(--bg-card); border:2px solid var(--border); border-radius:var(--radius-sm); display:flex; align-items:center; justify-content:center; font-size:40px; position:relative; overflow:hidden; }
+.slot-reel.spinning::after { content:''; position:absolute; inset:0; background:linear-gradient(180deg,transparent 0%,rgba(245,166,35,.07) 50%,transparent 100%); animation:scanline 0.3s linear infinite; }
+@keyframes scanline { from{transform:translateY(-100%);} to{transform:translateY(100%);} }
+
+.roulette-btns { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin:12px 0; }
+.r-btn { padding:12px 6px; border-radius:var(--radius-sm); font-size:12px; font-weight:700; cursor:pointer; border:none; transition:opacity .15s; }
+.r-btn.red   { background:rgba(232,64,64,.2); border:1px solid var(--red); color:var(--red); }
+.r-btn.black { background:rgba(42,45,58,.8); border:1px solid #4a4d5e; color:var(--text); }
+.r-btn.green { background:rgba(62,207,110,.12); border:1px solid var(--green); color:var(--green); }
+.r-btn:active{ opacity:.7; }
+
+.bet-input-row { display:flex; gap:8px; margin-top:12px; }
+.bet-input { flex:1; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-sm); padding:12px; color:var(--text); font-size:15px; outline:none; }
+.bet-input:focus { border-color:var(--amber); }
+.btn-go { padding:12px 18px; border-radius:var(--radius-sm); background:var(--amber); color:#0d0e12; font-weight:800; font-size:14px; }
+.btn-close { position:absolute; top:16px; right:16px; background:var(--border); border-radius:50%; width:32px; height:32px; display:flex; align-items:center; justify-content:center; font-size:16px; cursor:pointer; border:none; color:var(--text-dim); }
+
+.game-result { background:var(--bg-card); border-radius:var(--radius-sm); padding:14px; margin-top:12px; text-align:center; border:1px solid var(--border); display:none; }
+.game-result.show { display:block; animation:popIn .2s ease; }
+.gr-outcome  { font-size:16px; font-weight:800; margin-bottom:4px; }
+.gr-amount   { font-size:22px; font-weight:900; }
+.gr-amount.win  { color:var(--green); }
+.gr-amount.loss { color:var(--red); }
+
+.egg-display { text-align:center; padding:20px 0; }
+.egg-icon    { font-size:80px; display:block; cursor:pointer; transition:transform .15s; filter:drop-shadow(0 0 16px rgba(245,166,35,.3)); }
+.egg-icon:active { transform:scale(.9) rotate(-5deg); }
+.egg-icon.shake  { animation: eggShake .4s ease; }
+@keyframes eggShake { 0%,100%{transform:rotate(0);} 20%{transform:rotate(-12deg) scale(.95);} 40%{transform:rotate(12deg) scale(1.05);} 60%{transform:rotate(-8deg);} 80%{transform:rotate(8deg);} }
+
+.bonus-card { background:linear-gradient(135deg,var(--bg-card),#1f2235); border:1px solid var(--amber-dim); border-radius:var(--radius); padding:18px; text-align:center; position:relative; overflow:hidden; }
+.bonus-card::after { content:'🎁'; position:absolute; right:-10px; bottom:-10px; font-size:64px; opacity:.07; }
+.bonus-streak { display:flex; justify-content:center; gap:4px; margin:10px 0; }
+.streak-dot  { width:10px; height:10px; border-radius:50%; background:var(--border); }
+.streak-dot.lit { background:var(--amber); box-shadow:0 0 6px var(--amber); }
+.bonus-timer { font-size:13px; color:var(--text-dim); margin-top:8px; }
+.btn-claim { width:100%; padding:14px; border-radius:var(--radius-sm); background:linear-gradient(135deg,var(--amber-dim),var(--amber)); color:#0d0e12; font-weight:800; font-size:15px; margin-top:12px; }
+.btn-claim:disabled { opacity:.4; cursor:not-allowed; }
+
+.oracle-display { text-align:center; padding:16px 0; }
+.oracle-orb { width:100px; height:100px; border-radius:50%; background:radial-gradient(circle at 35% 35%,#6a3de8,#2d1a6b); box-shadow:0 0 30px rgba(155,89,216,.4); margin:0 auto 14px; display:flex; align-items:center; justify-content:center; font-size:42px; cursor:pointer; transition:transform .15s, box-shadow .15s; }
+.oracle-orb:active { transform:scale(.95); box-shadow:0 0 50px rgba(155,89,216,.6); }
+.oracle-val { font-size:36px; font-weight:900; color:var(--purple); }
+.oracle-bar { height:10px; background:var(--border); border-radius:5px; overflow:hidden; margin:10px 0; }
+.oracle-fill{ height:100%; border-radius:5px; background:linear-gradient(90deg,var(--purple),var(--cyan)); transition:width .8s cubic-bezier(.34,1.56,.64,1); box-shadow:0 0 8px var(--purple); }
+.oracle-msg { font-size:14px; color:var(--text-dim); font-style:italic; }
+
+.duel-card { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); padding:16px; margin-bottom:10px; }
+.duel-styles { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:12px; }
+.duel-style { background:var(--bg); border:1px solid var(--border); border-radius:var(--radius-sm); padding:12px; text-align:center; cursor:pointer; transition:border-color .15s, background .15s; }
+.duel-style:active { border-color:var(--amber); background:var(--amber-glow); }
+.ds-ico { font-size:24px; display:block; margin-bottom:4px; }
+.ds-name{ font-size:12px; font-weight:700; color:var(--text-dim); }
+.duel-style.selected { border-color:var(--amber); background:var(--amber-glow); }
+.duel-style.selected .ds-name { color:var(--amber); }
+.duel-beats { font-size:11px; color:var(--text-muted); margin-top:3px; }
+
+/* ── КЛАН ── */
+.clan-hero { background:linear-gradient(135deg,#1a1428,#1e1a2e); border:1px solid #3d2d6e; border-radius:var(--radius); padding:18px; margin-bottom:10px; text-align:center; }
+.clan-name   { font-size:22px; font-weight:900; color:var(--purple); margin-bottom:4px; }
+.clan-level  { font-size:12px; color:var(--text-dim); }
+.clan-stats  { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin:12px 0; }
+.cstat { background:rgba(255,255,255,.03); border:1px solid var(--border); border-radius:var(--radius-sm); padding:8px; text-align:center; }
+.cstat .cv { font-size:15px; font-weight:800; color:var(--text); }
+.cstat .cl { font-size:10px; color:var(--text-dim); text-transform:uppercase; }
+.mission-card { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-sm); padding:14px; margin-bottom:10px; }
+.mission-title { font-size:13px; font-weight:700; color:var(--text); margin-bottom:8px; }
+.mission-bar-bg { height:10px; background:var(--border); border-radius:5px; overflow:hidden; margin-bottom:6px; }
+.mission-bar-fill{ height:100%; background:linear-gradient(90deg,var(--purple),var(--cyan)); border-radius:5px; transition:width .5s; }
+.mission-nums { display:flex; justify-content:space-between; font-size:11px; color:var(--text-dim); }
+
+.members-list { display:flex; flex-direction:column; gap:6px; }
+.member-item  { display:flex; align-items:center; gap:10px; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-sm); padding:10px 12px; }
+.member-ava   { width:34px; height:34px; border-radius:50%; background:linear-gradient(135deg,#3d2d6e,#6a3de8); display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0; }
+.member-info  { flex:1; }
+.member-name  { font-size:13px; font-weight:700; }
+.member-rank  { font-size:11px; color:var(--text-dim); margin-top:1px; }
+
+.clan-actions { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
+.btn-clan { padding:12px; border-radius:var(--radius-sm); border:1px solid var(--border); background:var(--bg-card); color:var(--text); font-size:13px; font-weight:700; }
+.btn-clan.purple { border-color:var(--purple); color:var(--purple); background:rgba(155,89,216,.08); }
+.btn-clan:active { opacity:.8; }
+
+.no-clan-card { text-align:center; padding:30px 20px; background:var(--bg-card); border-radius:var(--radius); border:1px dashed var(--border); }
+.no-clan-icon { font-size:52px; display:block; margin-bottom:12px; opacity:.6; }
+.no-clan-title{ font-size:16px; font-weight:800; color:var(--text); margin-bottom:6px; }
+.no-clan-desc { font-size:13px; color:var(--text-dim); line-height:1.5; }
+.btn-join-clan { margin-top:14px; padding:13px 28px; border-radius:var(--radius-sm); background:var(--purple); color:#fff; font-weight:700; font-size:14px; }
+
+/* ── КРАФТ / РИНКИ ── */
+.sub-tabs { display:flex; gap:6px; margin-bottom:12px; overflow-x:auto; padding-bottom:2px; scrollbar-width:none; }
+.sub-tabs::-webkit-scrollbar { display:none; }
+.sub-tab { padding:7px 14px; border-radius:20px; border:1px solid var(--border); background:none; color:var(--text-dim); font-size:12px; font-weight:700; white-space:nowrap; flex-shrink:0; transition:all .15s; }
+.sub-tab.active { background:var(--amber-glow); border-color:var(--amber-dim); color:var(--amber); }
+
+.top-item { display:flex; align-items:center; gap:10px; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-sm); padding:10px 12px; margin-bottom:6px; }
+.top-medal { font-size:20px; width:28px; text-align:center; flex-shrink:0; }
+.top-info  { flex:1; }
+.top-name  { font-size:13px; font-weight:700; }
+.top-sub   { font-size:11px; color:var(--text-dim); margin-top:1px; }
+.top-val   { font-size:14px; font-weight:800; color:var(--amber); }
+
+.auc-item  { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-sm); padding:12px; margin-bottom:8px; display:flex; align-items:center; gap:10px; }
+.auc-ore   { font-size:28px; flex-shrink:0; }
+.auc-info  { flex:1; }
+.auc-name  { font-size:13px; font-weight:700; }
+.auc-seller{ font-size:11px; color:var(--text-dim); margin-top:2px; }
+.auc-right { text-align:right; }
+.auc-price { font-size:14px; font-weight:800; color:var(--amber); }
+.btn-auc-buy{ margin-top:4px; padding:6px 12px; border-radius:6px; background:var(--amber); color:#0d0e12; font-size:11px; font-weight:800; }
+
+.craft-item{ background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-sm); padding:12px; margin-bottom:8px; }
+.craft-name{ font-size:13px; font-weight:700; margin-bottom:6px; display:flex; justify-content:space-between; }
+.craft-xp  { font-size:11px; color:var(--cyan); }
+.craft-needs{ display:flex; flex-wrap:wrap; gap:4px; margin-bottom:8px; }
+.need-tag  { padding:3px 8px; border-radius:6px; font-size:11px; font-weight:600; }
+.need-tag.ok   { background:rgba(62,207,110,.1); border:1px solid rgba(62,207,110,.3); color:var(--green); }
+.need-tag.miss { background:rgba(232,64,64,.1); border:1px solid rgba(232,64,64,.3); color:var(--red); }
+.btn-craft { width:100%; padding:10px; border-radius:var(--radius-sm); font-size:13px; font-weight:700; }
+.btn-craft.can  { background:var(--cyan); color:#0d0e12; }
+.btn-craft.cant { background:var(--border); color:var(--text-muted); }
+
+/* UTILITIES */
+.divider { height:1px; background:var(--border); margin:12px 0; }
+.toast   { position:fixed; top:calc(var(--header-h) + 8px); left:50%; transform:translateX(-50%) translateY(-80px); background:var(--bg-panel); border:1px solid var(--border); border-radius:12px; padding:10px 18px; font-size:13px; font-weight:600; z-index:200; white-space:nowrap; transition:transform .3s cubic-bezier(.34,1.56,.64,1), opacity .3s; opacity:0; pointer-events:none; }
+.toast.show { transform:translateX(-50%) translateY(0); opacity:1; }
+.pulse-dot { width:6px; height:6px; border-radius:50%; background:var(--green); display:inline-block; margin-right:4px; animation:pulse 1.8s ease-in-out infinite; }
+@keyframes pulse { 0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(62,207,110,.4);} 50%{opacity:.8;box-shadow:0 0 0 5px rgba(62,207,110,0);} }
+.particles { position:fixed; pointer-events:none; z-index:300; inset:0; }
+.particle  { position:absolute; font-size:16px; animation:particleUp .8s ease-out forwards; }
+@keyframes particleUp { from{transform:translateY(0) scale(1);opacity:1;} to{transform:translateY(-80px) scale(0.5);opacity:0;} }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <header id="header">
+    <div class="hdr-avatar">⛏</div>
+    <div class="hdr-info">
+      <div class="hdr-name" id="hdr-name">Гірник</div>
+      <div class="hdr-sub"><span class="pulse-dot"></span><span id="hdr-lvl">Рівень 1</span> · <span id="hdr-online">1 онлайн</span></div>
+    </div>
+    <div class="hdr-coins">
+      <span>🪙</span>
+      <span id="hdr-coins">500</span>
+    </div>
+    <div class="hdr-online" id="hdr-online-dot"></div>
+  </header>
+
+  <div id="pages">
+
+    <div class="page active" id="page-mine">
+      <div class="event-banner" id="event-banner">
+        <div class="ev-icon" id="ev-icon">🌟</div>
+        <div class="ev-info">
+          <div class="ev-name" id="ev-name">Подія: Золота лихоманка</div>
+          <div class="ev-timer" id="ev-timer">30 хв</div>
+          <div class="ev-bar"><div class="ev-fill" id="ev-fill" style="width:60%"></div></div>
+        </div>
+      </div>
+
+      <div class="mine-hero">
+        <div class="mine-shaft">
+          <span class="shaft-anim" id="mine-emoji">⛏️</span>
+        </div>
+
+        <div class="mine-stats">
+          <div class="mine-stat">
+            <div class="ms-val" id="mine-stat-mined">0</div>
+            <div class="ms-lbl">Видобуто руд</div>
+          </div>
+          <div class="mine-stat">
+            <div class="ms-val" id="mine-stat-pick">Руки</div>
+            <div class="ms-lbl">Інструмент</div>
+          </div>
+          <div class="mine-stat">
+            <div class="ms-val" id="mine-stat-luck">0</div>
+            <div class="ms-lbl">Удача 🍀</div>
+          </div>
+          <div class="mine-stat">
+            <div class="ms-val" id="mine-stat-inv">0/20</div>
+            <div class="ms-lbl">Рюкзак</div>
+          </div>
+        </div>
+
+        <div class="xp-bar-wrap">
+          <div class="xp-bar-lbl">
+            <span>XP</span>
+            <span id="xp-nums">0 / 500</span>
+          </div>
+          <div class="xp-bar"><div class="xp-fill" id="xp-fill" style="width:0%"></div></div>
+        </div>
+      </div>
+
+      <button class="btn-mine" id="btn-mine" onclick="doMine()">⛏ КОПАТИ!</button>
+      <div class="mine-cd-ring" id="mine-cd"><span class="cd-text">⌛ <span id="cd-sec">0</span> сек</span></div>
+
+      <div class="mine-result" id="mine-result">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div class="result-ore" id="res-ore">🪨</div>
+          <div>
+            <div class="result-name" id="res-name">Кругляк</div>
+            <div class="result-val" id="res-val">💰 50 🪙</div>
+            <div class="result-xp" id="res-xp">⭐ +2 XP</div>
+            <div class="result-event" id="res-event" style="display:none">🎪 Подія: +50%</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="page" id="page-inventory">
+      <div class="section-title">🎒 Твій Інвентар <span class="badge" id="inv-badge">0</span></div>
+      <div class="inv-cap">
+        <div class="inv-bar-row">
+          <div class="inv-bar-bg">
+            <div class="inv-bar-fill" id="inv-bar-fill" style="width: 0%; background: var(--amber)"></div>
+          </div>
+          <div class="inv-bar-lbl" id="inv-bar-lbl">0 / 25</div>
+        </div>
+      </div>
+
+      <div class="market-card">
+        <div class="section-title">📈 Біржа Руди</div>
+        <div class="market-rate">
+          <div class="rate-val" id="market-mult">x1.00</div>
+          <div class="rate-x">множник ринку</div>
+          <div class="rate-status stable" id="market-status">СТАБІЛЬНИЙ</div>
+        </div>
+        <div class="spark-chart" id="spark-chart"></div>
+        <div class="market-tip">⚠️ Ціни на ринку коливаються! Продавай під час "Буржуазного Буму" та остерігайся Риночних Крашів!</div>
+      </div>
+
+      <div class="inv-actions">
+        <button class="btn-sell-all" onclick="sellAllOres()">💰 ПРОДАТИ ВСЮ РУДУ</button>
+      </div>
+      <div class="divider"></div>
+
+      <div id="inventory-list" class="inv-list"></div>
+    </div>
+
+    <div class="page" id="page-shop">
+      <div class="shop-cats">
+        <div class="shop-cat active" id="sc-pick" onclick="switchShopCat('pick')">
+          <span class="sc-ico">⛏️</span>
+          <span class="sc-lbl">Кирки</span>
+        </div>
+        <div class="shop-cat" id="sc-bag" onclick="switchShopCat('bag')">
+          <span class="sc-ico">🎒</span>
+          <span class="sc-lbl">Сумки</span>
+        </div>
+      </div>
+      <div class="shop-items" id="shop-items-list"></div>
+    </div>
+
+    <div class="page" id="page-activities">
+      <div class="section-title">⚔️ Підземні Розваги</div>
+      <div class="act-grid">
+        <div class="act-card amber-g" onclick="openModal('casino')">
+          <span class="act-icon">🎰</span>
+          <div class="act-title">Казино Фортуна</div>
+          <div class="act-sub">Слоти та Рулетка</div>
+        </div>
+        <div class="act-card cyan-g" onclick="openModal('oracle')">
+          <span class="act-icon">🔮</span>
+          <div class="act-title">Оракул Удачі</div>
+          <div class="act-sub">Передбачити успіх</div>
+        </div>
+        <div class="act-card green-g" onclick="openModal('egg')">
+          <span class="act-icon">🥚</span>
+          <div class="act-title">Загадкове Яйце</div>
+          <div class="act-sub">Клікай та розбий</div>
+        </div>
+        <div class="act-card purple-g" onclick="openModal('bonus')">
+          <span class="act-icon">🎁</span>
+          <div class="act-title">Щоденний Бонус</div>
+          <div class="act-sub">Забрати куш</div>
+        </div>
+      </div>
+
+      <div class="duel-card">
+        <div class="section-title">🗡️ Дуелі на Арені</div>
+        <div class="duel-styles">
+          <div class="duel-style selected" id="ds-atk" onclick="selectDuelStyle('atk')">
+            <span class="ds-ico">⚔️</span>
+            <span class="ds-name">Атакувальний</span>
+            <div class="duel-beats">Б'є Тактичний</div>
+          </div>
+          <div class="duel-style" id="ds-def" onclick="selectDuelStyle('def')">
+            <span class="ds-ico">🛡️</span>
+            <span class="ds-name">Захисний</span>
+            <div class="duel-beats">Б'є Атакувальний</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="page" id="page-clan">
+      <div id="clan-section-joined" style="display:none;">
+        <div class="clan-hero">
+          <div class="clan-name" id="clan-name">IRON FORGE</div>
+          <div class="clan-level">Рівень клану: 3</div>
+          <div class="clan-stats">
+            <div class="cstat"><div class="cv" id="clan-stat-members">5/20</div><div class="cl">Гравці</div></div>
+            <div class="cstat"><div class="cv" id="clan-stat-power">840К</div><div class="cl">Сила</div></div>
+            <div class="cstat"><div class="cv">x1.15</div><div class="cl">Буст XP</div></div>
+          </div>
+        </div>
+        <div class="mission-card">
+          <div class="mission-title">🏆 Кланова місія: Видобуток Обсидіану</div>
+          <div class="mission-bar-bg"><div class="mission-bar-fill" style="width:45%"></div></div>
+          <div class="mission-nums"><span>Прогрес: 9 / 20 шт</span><span>+1,500,000 🪙</span></div>
+        </div>
+        <div class="section-title">👥 Члени Синдикату</div>
+        <div class="members-list" id="clan-members"></div>
+      </div>
+
+      <div id="clan-section-none" class="no-clan-card">
+        <span class="no-clan-icon">🏰</span>
+        <div class="no-clan-title">Ти не в клані</div>
+        <div class="no-clan-desc">Приєднуйся до шахтарських гільдій, щоб виконувати спільні рейд-місії та отримувати великі грошові бонуси й баффи до удачі.</div>
+        <button class="btn-join-clan" onclick="joinDefaultClan()">🛡️ СТВОРЕННЯ / ВСТУП</button>
+      </div>
+    </div>
+
+    <div class="page" id="page-extra">
+      <div class="sub-tabs">
+        <button class="sub-tab active" id="stab-craft" onclick="switchExtraTab('craft')">🛠️ Крафт верстак</button>
+        <button class="sub-tab" id="stab-top" onclick="switchExtraTab('top')">🏆 ТОП Гравців</button>
+        <button class="sub-tab" id="stab-auc" onclick="switchExtraTab('auc')">⚖️ Аукціон</button>
+      </div>
+
+      <div id="extra-craft-view" style="display:block;"></div>
+      <div id="extra-top-view" style="display:none;"></div>
+      <div id="extra-auc-view" style="display:none;"></div>
+    </div>
+
+    <div class="page" id="page-profile">
+      <div class="profile-hero">
+        <span class="profile-avatar">👷‍♂️</span>
+        <div class="profile-name" id="prof-name">Гірник Альфа</div>
+        <div class="profile-prefix" id="prof-prefix">🥈 [Silver]</div>
+        <div class="profile-level"><span id="prof-lvl">Рівень 1</span></div>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card"><div class="sv" id="stat-total-clicks">0</div><div class="sl">Всього ударів</div></div>
+        <div class="stat-card"><div class="sv" id="stat-total-earned">0 🪙</div><div class="sl">Зароблено</div></div>
+      </div>
+
+      <div class="section-title">🏅 Досягнення Шахтаря</div>
+      <div class="achievements-list" id="achievements-list"></div>
+    </div>
+
+  </div>
+
+  <nav id="tabs">
+    <button class="tab active" onclick="switchPage('mine', this)">
+      <span class="tab-icon">⛏️</span><span class="tab-lbl">Шахта</span>
+    </button>
+    <button class="tab" onclick="switchPage('inventory', this)">
+      <span class="tab-icon">🎒</span><span class="tab-lbl">Склад</span>
+    </button>
+    <button class="tab" onclick="switchPage('shop', this)">
+      <span class="tab-icon">🛒</span><span class="tab-lbl">Магазин</span>
+    </button>
+    <button class="tab" onclick="switchPage('activities', this)">
+      <span class="tab-icon">🎰</span><span class="tab-lbl">Ігри</span>
+    </button>
+    <button class="tab" onclick="switchPage('extra', this)">
+      <span class="tab-icon">🛠️</span><span class="tab-lbl">Крафт</span>
+    </button>
+    <button class="tab" onclick="switchPage('clan', this)">
+      <span class="tab-icon">🏰</span><span class="tab-lbl">Клан</span>
+    </button>
+    <button class="tab" onclick="switchPage('profile', this)">
+      <span class="tab-icon">👤</span><span class="tab-lbl">Кабінет</span>
+    </button>
+  </nav>
+</div>
+
+<div class="modal-overlay" id="modal-casino">
+  <div class="modal-sheet">
+    <button class="btn-close" onclick="closeModal('casino')">✕</button>
+    <div class="modal-handle"></div>
+    <div class="modal-title">🎰 Рулетка & Слоти</div>
+    <div class="slot-display">
+      <div class="slot-reel" id="reel-1">💎</div>
+      <div class="slot-reel" id="reel-2">💎</div>
+      <div class="slot-reel" id="reel-3">💎</div>
+    </div>
+    <div class="roulette-btns">
+      <button class="r-btn red" id="rb-red" onclick="selectBetColor('red')">ЧЕРВОНЕ (x2)</button>
+      <button class="r-btn black" id="rb-black" onclick="selectBetColor('black')">ЧОРНЕ (x2)</button>
+      <button class="r-btn green" id="rb-green" onclick="selectBetColor('green')">ЗЕРО (x14)</button>
+    </div>
+    <div class="bet-input-row">
+      <input type="number" class="bet-input" id="casino-bet" placeholder="Ставка 🪙" value="100">
+      <button class="btn-go" onclick="spinCasino()">КРУТИТИ</button>
+    </div>
+    <div class="game-result" id="casino-res">
+      <div class="gr-outcome" id="c-out">ВИГРАШ!</div>
+      <div class="gr-amount win" id="c-amt">+200 🪙</div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-oracle">
+  <div class="modal-sheet">
+    <button class="btn-close" onclick="closeModal('oracle')">✕</button>
+    <div class="modal-handle"></div>
+    <div class="modal-title">🔮 Оракул Підземелля</div>
+    <div class="oracle-display">
+      <div class="oracle-orb" onclick="consultOracle()">🔮</div>
+      <div class="oracle-val" id="oracle-val">??%</div>
+      <div class="oracle-bar"><div class="oracle-fill" id="oracle-fill" style="width: 0%"></div></div>
+      <div class="oracle-msg" id="oracle-msg">Торкнися сфери матерії, щоб дізнатися бафф удачі...</div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-egg">
+  <div class="modal-sheet">
+    <button class="btn-close" onclick="closeModal('egg')">✕</button>
+    <div class="modal-handle"></div>
+    <div class="modal-title">🥚 Загадкове Яйце Дракона</div>
+    <div class="egg-display">
+      <span class="egg-icon" id="egg-icon" onclick="clickEgg()">🥚</span>
+      <div class="xp-bar-lbl" style="margin-top:15px;">
+        <span>Міцність шкарлупи:</span>
+        <span id="egg-hp">15 / 15</span>
+      </div>
+      <div class="xp-bar"><div class="xp-fill" id="egg-fill" style="width: 100%; background: var(--purple)"></div></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-bonus">
+  <div class="modal-sheet">
+    <button class="btn-close" onclick="closeModal('bonus')">✕</button>
+    <div class="modal-handle"></div>
+    <div class="modal-title">🎁 Щоденний Чек-Ін Бонус</div>
+    <div class="bonus-card">
+      <div class="bonus-streak">
+        <div class="streak-dot lit"></div>
+        <div class="streak-dot lit"></div>
+        <div class="streak-dot"></div>
+        <div class="streak-dot"></div>
+        <div class="streak-dot"></div>
+      </div>
+      <div class="bonus-timer" id="bonus-timer">Доступно зараз!</div>
+      <button class="btn-claim" id="btn-claim-bonus" onclick="claimDailyBonus()">ЗАБРАТИ БОНУС (+25,000 🪙)</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast">⛏️ Успішно видобуто руду!</div>
+<div class="particles" id="particles"></div>
+
+<script>
+// Твоя база даних з Python-скрипта (шанси, ціни, предмети)
+const ORE_TYPES = {
+  "Common":      { name: "🪨 Кругляк",               chance: 0.45,    price: [5, 50],       xp: [2, 5] },
+  "Coal":        { name: "⬛️ Вугілля",               chance: 0.20,    price: [60, 150],     xp: [4, 8] },
+  "Copper":      { name: "🥉 Мідна руда",            chance: 0.15,    price: [200, 500],    xp: [6, 15] },
+  "Iron":        { name: "⚙️ Залізна руда",          chance: 0.07,    price: [600, 1200],   xp: [15, 30] },
+  "Rare":        { name: "🔷 Синій кристал",         chance: 0.05,    price: [1500, 3500],  xp: [30, 60] },
+  "Gold":        { name: "🟡 Золотий самородок",     chance: 0.03,    price: [5000, 12000], xp: [70, 120] },
+  "Ruby":        { name: "🔴 Кривавий рубін",        chance: 0.015,   price: [20000, 45000],xp: [150, 300] },
+  "Amethyst":    { name: "🔮 Аметист",               chance: 0.01,    price: [50000, 90000],xp: [250, 500] },
+  "Obsidian":    { name: "🕶 Обсидіан",              chance: 0.005,   price: [400000, 800000], xp: [1200, 2000] },
+  "Divine":      { name: "✨ Божественне сяйво",     chance: 0.0005,  price: [25000000, 60000000], xp: [20000, 50000] },
+  "Singularity": { name: "🌀 Осколок Сингулярності", chance: 0.00001, price: [1500000000, 3500000000], xp: [1500000, 4000000] }
+};
+
+const SHOP_ITEMS = {
+  pick: [
+    { id: "pick_wooden",   name: "🪾 Дерев'яна кирка",       price: 1000,    mult: 1.0,   level: 1 },
+    { id: "pick_stone",    name: "🪨 Кам'яна кирка",         price: 5000,    mult: 1.8,   level: 3 },
+    { id: "pick_iron",     name: "⚒ Залізна кирка",          price: 25000,   mult: 3.5,   level: 5 },
+    { id: "pick_gold",     name: "🔱 Золота кирка",          price: 200000,  mult: 10.0,  level: 12 },
+    { id: "pick_obsidian", name: "🌋 Обсидіанове вістря",    price: 500000,  mult: 18.0,  level: 18 }
+  ],
+  bag: [
+    { id: "bag_pouch", name: "👝 Мала торбинка",   price: 2500,   slots: 25,   level: 2 },
+    { id: "bag_med",   name: "🎒 Шкіряна сумка",    price: 20000,  slots: 50,   level: 5 },
+    { id: "bag_large", name: "📦 Великий ящик",     price: 100000, slots: 120,  level: 10 }
+  ]
+};
+
+const CRAFT_RECIPES = [
+  { id: "block_stone", name: "🧱 Спресований камінь", needs: { "Common": 50 }, xp: 20, value: 3000 },
+  { id: "fuel_coal",   name: "🔥 Вугільний брикет",   needs: { "Coal": 10 },   xp: 30, value: 1200 },
+  { id: "wire_copper", name: "➰ Мідний дріт",        needs: { "Copper": 5 },  xp: 40, value: 2000 },
+  { id: "ingot_iron",  name: "🔩 Залізний злиток",    needs: { "Iron": 3, "Coal": 2 }, xp: 60, value: 4500 }
+];
+
+// STATE (Поточний стан користувача)
+let user = {
+  coins: 5000,
+  xp: 0,
+  level: 1,
+  total_mined: 0,
+  total_clicks: 0,
+  total_earned: 0,
+  luck: 10,
+  pickaxe: { name: "👋 Руки", mult: 1.0 },
+  bag: { slots: 20 },
+  inventory: {},
+  prefix: "🥈 [Silver]",
+  clan: null,
+  duelStyle: 'atk'
+};
+
+let currentShopCat = 'pick';
+let currentExtraTab = 'craft';
+let selectedCasinoColor = 'red';
+let eggHp = 15;
+let isCooldown = false;
+let marketMultiplier = 1.05;
+let marketHistory = [1.0, 1.1, 0.95, 1.2, 1.05];
+
+// Telegram WebApp Initialization
+const tg = window.Telegram ? window.Telegram.WebApp : null;
+if (tg) {
+  tg.expand();
+  if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
+    user.name = tg.initDataUnsafe.user.first_name;
+    document.getElementById("hdr-name").innerText = user.name;
+    document.getElementById("prof-name").innerText = user.name;
+  }
+}
+
+// РЕНДЕР ІНІЦІАЛІЗАЦІЇ
+function init() {
+  updateUI();
+  renderShop();
+  renderInventory();
+  renderCraft();
+  renderTop();
+  renderAuction();
+  generateSparkline();
+}
+
+// SWITCH PAGES
+function switchPage(pageId, tabEl) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-' + pageId).classList.add('active');
+  tabEl.classList.add('active');
+}
+
+// UPDATE ALL INTERFACE ELEMENTS
+function updateUI() {
+  document.getElementById("hdr-coins").innerText = user.coins.toLocaleString();
+  document.getElementById("hdr-lvl").innerText = "Рівень " + user.level;
+  document.getElementById("prof-lvl").innerText = "Рівень " + user.level;
+  document.getElementById("prof-prefix").innerText = user.prefix;
+
+  document.getElementById("mine-stat-mined").innerText = user.total_mined;
+  document.getElementById("mine-stat-pick").innerText = user.pickaxe.name;
+  document.getElementById("mine-stat-luck").innerText = user.luck + " 🍀";
+  
+  let currentInvCount = Object.values(user.inventory).reduce((a,b) => a+b, 0);
+  document.getElementById("mine-stat-inv").innerText = currentInvCount + "/" + user.bag.slots;
+  document.getElementById("inv-bar-lbl").innerText = currentInvCount + " / " + user.bag.slots;
+  document.getElementById("inv-badge").innerText = currentInvCount;
+  
+  let invPct = (currentInvCount / user.bag.slots) * 100;
+  document.getElementById("inv-bar-fill").style.width = Math.min(invPct, 100) + "%";
+
+  let nextXp = user.level * 500;
+  document.getElementById("xp-nums").innerText = user.xp + " / " + nextXp;
+  document.getElementById("xp-fill").style.width = (user.xp / nextXp) * 100 + "%";
+
+  document.getElementById("stat-total-clicks").innerText = user.total_clicks;
+  document.getElementById("stat-total-earned").innerText = user.total_earned.toLocaleString() + " 🪙";
+}
+
+// ⛏️ МЕХАНІКА ВИДОБУТКУ (SHAH-TA)
+function doMine() {
+  if (isCooldown) return;
+  
+  let currentInvCount = Object.values(user.inventory).reduce((a,b) => a+b, 0);
+  if (currentInvCount >= user.bag.slots) {
+    showToast("🎒 Твій рюкзак забитий рудою! Продай її на Складі.");
+    return;
+  }
+
+  // 3% chance of mine collapse matching Python `random.random() < 0.03`
+  if (Math.random() < 0.03) {
+    let loss = Math.floor(user.coins * 0.1);
+    user.coins -= loss;
+    showToast("💥 ОБВАЛ ШАХТИ! Втрачено " + loss + " 🪙", true);
+    triggerScreenShake();
+    updateUI();
+    return;
+  }
+
+  user.total_clicks++;
+  
+  // Рахуємо випадіння руди за шансами
+  let rand = Math.random();
+  let cumulative = 0;
+  let selectedOreKey = "Common";
+
+  for (let key in ORE_TYPES) {
+    cumulative += ORE_TYPES[key].chance;
+    if (rand <= cumulative) {
+      selectedOreKey = key;
+      break;
+    }
+  }
+
+  let ore = ORE_TYPES[selectedOreKey];
+  user.inventory[selectedOreKey] = (user.inventory[selectedOreKey] || 0) + 1;
+  user.total_mined++;
+
+  // Розрахунок XP та Балансу
+  let gainedXp = Math.floor((Math.random() * (ore.xp[1] - ore.xp[0]) + ore.xp[0]) * user.pickaxe.mult);
+  user.xp += gainedXp;
+  
+  // Перевірка нового рівня
+  let nextXp = user.level * 500;
+  if (user.xp >= nextXp) {
+    user.xp -= nextXp;
+    user.level++;
+    showToast("🎉 НОВИЙ РІВЕНЬ ДОСЯГНУТО: " + user.level + "!", false);
+  }
+
+  // Візуалізація результату
+  let resDiv = document.getElementById("mine-result");
+  resDiv.className = "mine-result show " + (ore.chance < 0.02 ? 'legend' : ore.chance < 0.06 ? 'epic' : ore.chance < 0.16 ? 'rare' : 'common');
+  document.getElementById("res-ore").innerText = ore.name.split(" ")[0];
+  document.getElementById("res-name").innerText = ore.name;
+  
+  let avgPrice = Math.floor((ore.price[0] + ore.price[1]) / 2);
+  document.getElementById("res-val").innerText = "Середня вартість: 💰 " + avgPrice + " 🪙";
+  document.getElementById("res-xp").innerText = "⭐ +" + gainedXp + " XP";
+
+  createParticles(event.clientX, event.clientY, ore.name.split(" ")[0]);
+  
+  // Ефект неонового спалаху для Divine/Singularity
+  if (selectedOreKey === "Divine" || selectedOreKey === "Singularity") {
+    triggerEpicFlash();
+  }
+
+  // Коулдаун на клік
+  isCooldown = true;
+  let btn = document.getElementById("btn-mine");
+  btn.classList.add("cooldown");
+  document.getElementById("mine-cd").classList.add("show");
+  let cdSec = 2;
+  document.getElementById("cd-sec").innerText = cdSec;
+  
+  let interval = setInterval(() => {
+    cdSec--;
+    document.getElementById("cd-sec").innerText = cdSec;
+    if (cdSec <= 0) {
+      clearInterval(interval);
+      isCooldown = false;
+      btn.classList.remove("cooldown");
+      document.getElementById("mine-cd").classList.remove("show");
+    }
+  }, 1000);
+
+  updateUI();
+  renderInventory();
+}
+
+// RENDER INVENTORY & PRICES
+function renderInventory() {
+  let list = document.getElementById("inventory-list");
+  list.innerHTML = "";
+  let hasItems = false;
+
+  for (let key in user.inventory) {
+    if (user.inventory[key] <= 0) continue;
+    hasItems = true;
+    let ore = ORE_TYPES[key];
+    let count = user.inventory[key];
+    let avgPrice = Math.floor(((ore.price[0] + ore.price[1]) / 2) * marketMultiplier);
+
+    let itemHtml = `
+      <div class="inv-item">
+        <div class="ore-icon">${ore.name.split(" ")[0]}</div>
+        <div class="ore-info">
+          <div class="ore-name">${ore.name}</div>
+          <div class="ore-cnt">Кількість: ${count} шт</div>
+        </div>
+        <div class="ore-val">~ ${(avgPrice * count).toLocaleString()} 🪙</div>
+      </div>
+    `;
+    list.innerHTML += itemHtml;
+  }
+
+  if (!hasItems) {
+    list.innerHTML = `
+      <div class="inv-empty">
+        <span class="ie-icon">🪹</span>
+        <div>Твій склад порожній. Відправляйся в шахту!</div>
+      </div>
+    `;
+  }
+}
+
+// SELL ALL ORES
+function sellAllOres() {
+  let totalGain = 0;
+  for (let key in user.inventory) {
+    let count = user.inventory[key];
+    if (count > 0) {
+      let ore = ORE_TYPES[key];
+      let avgPrice = Math.floor(((ore.price[0] + ore.price[1]) / 2) * marketMultiplier);
+      totalGain += avgPrice * count;
+    }
+  }
+
+  if (totalGain === 0) {
+    showToast("❌ Немає ресурсів для продажу!");
+    return;
+  }
+
+  user.coins += totalGain;
+  user.total_earned += totalGain;
+  user.inventory = {};
+  showToast("💰 Продано руди на + " + totalGain.toLocaleString() + " 🪙!");
+  updateUI();
+  renderInventory();
+  renderCraft(); 
+}
+
+// RENDER SHOP ITEMS
+function renderShop() {
+  let itemsContainer = document.getElementById("shop-items-list");
+  itemsContainer.innerHTML = "";
+  
+  let currentCatItems = SHOP_ITEMS[currentShopCat];
+  currentCatItems.forEach(item => {
+    let isLocked = user.level < item.level;
+    let btnText = isLocked ? `Рівень ${item.level}` : `${item.price.toLocaleString()} 🪙`;
+    
+    let subText = item.mult ? `Множник сили: x${item.mult}` : `Місткість: ${item.slots} слотів`;
+
+    let itemHtml = `
+      <div class="shop-item ${isLocked ? 'locked' : ''}">
+        <div class="si-icon">${currentShopCat === 'pick' ? '⛏️' : '🎒'}</div>
+        <div class="si-body">
+          <div class="si-name">${item.name}</div>
+          <div class="si-sub">${subText}</div>
+        </div>
+        <button class="btn-buy ${isLocked ? 'locked' : ''}" onclick="buyShopItem('${currentShopCat}', '${item.id}', ${item.price}, ${isLocked})">${btnText}</button>
+      </div>
+    `;
+    itemsContainer.innerHTML += itemHtml;
+  });
+}
+
+function switchShopCat(cat) {
+  currentShopCat = cat;
+  document.getElementById("sc-pick").classList.remove("active");
+  document.getElementById("sc-bag").classList.remove("active");
+  document.getElementById("sc-" + cat).classList.add("active");
+  renderShop();
+}
+
+function buyShopItem(cat, id, price, isLocked) {
+  if (isLocked) {
+    showToast("🔒 Твій рівень замалий для цього інструменту!");
+    return;
+  }
+  if (user.coins < price) {
+    showToast("❌ Недостатньо монет!");
+    return;
+  }
+
+  user.coins -= price;
+  if (cat === 'pick') {
+    let chosen = SHOP_ITEMS.pick.find(i => i.id === id);
+    user.pickaxe = { name: chosen.name, mult: chosen.mult };
+    showToast("⚒️ Екіпіровано: " + chosen.name);
+  } else {
+    let chosen = SHOP_ITEMS.bag.find(i => i.id === id);
+    user.bag.slots = chosen.slots;
+    showToast("🎒 Об'єм сумки збільшено до " + chosen.slots);
+  }
+  updateUI();
+  renderShop();
+}
+
+// CRAFT SYSTEM
+function renderCraft() {
+  let view = document.getElementById("extra-craft-view");
+  view.innerHTML = "";
+
+  CRAFT_RECIPES.forEach(recipe => {
+    let tagsHtml = "";
+    let canCraft = true;
+
+    for (let needOre in recipe.needs) {
+      let neededCnt = recipe.needs[needOre];
+      let currentCnt = user.inventory[needOre] || 0;
+      let isOk = currentCnt >= neededCnt;
+      if (!isOk) canCraft = false;
+
+      tagsHtml += `<span class="need-tag ${isOk ? 'ok' : 'miss'}">${ORE_TYPES[needOre].name.split(" ")[0]} ${currentCnt}/${neededCnt}</span>`;
+    }
+
+    let itemHtml = `
+      <div class="craft-item">
+        <div class="craft-name"><span>${recipe.name}</span><span class="craft-xp">+${recipe.xp} XP</span></div>
+        <div class="craft-needs">${tagsHtml}</div>
+        <button class="btn-craft ${canCraft ? 'can' : 'cant'}" onclick="executeCraft('${recipe.id}', ${canCraft})">🛠️ ЗКРАФТИТИ</button>
+      </div>
+    `;
+    view.innerHTML += itemHtml;
+  });
+}
+
+function executeCraft(recipeId, canCraft) {
+  if (!canCraft) {
+    showToast("❌ Тобі бракує підземних ресурсів!");
+    return;
+  }
+  let recipe = CRAFT_RECIPES.find(r => r.id === recipeId);
+  
+  // Забираємо ресурси
+  for (let needOre in recipe.needs) {
+    user.inventory[needOre] -= recipe.needs[needOre];
+  }
+
+  user.coins += recipe.value;
+  user.xp += recipe.xp;
+  showToast(`✅ Створено ${recipe.name}! Отримано +${recipe.value} 🪙 та +${recipe.xp} XP!`);
+  
+  updateUI();
+  renderInventory();
+  renderCraft();
+}
+
+// ACTIVITY MODALS MANAGEMENT
+function openModal(id) {
+  document.getElementById("modal-" + id).classList.add("open");
+  if (id === 'bonus') {
+    let now = new Date();
+    document.getElementById("bonus-timer").innerText = "Сьогодні: " + now.toLocaleDateString();
+  }
+}
+
+function closeModal(id) {
+  document.getElementById("modal-" + id).classList.remove("open");
+}
+
+// 🎰 CASINO GAME LOGIC
+function spinCasino() {
+  let betInput = document.getElementById("casino-bet");
+  let bet = parseInt(betInput.value);
+
+  if (isNaN(bet) || bet <= 0 || user.coins < bet) {
+    showToast("❌ Невірна ставка або брак монет!");
+    return;
+  }
+
+  user.coins -= bet;
+  let reels = ["💎", "🍒", "🪙", "⛏️", "👑"];
+  
+  document.getElementById("reel-1").classList.add("spinning");
+  document.getElementById("reel-2").classList.add("spinning");
+  document.getElementById("reel-3").classList.add("spinning");
+
+  setTimeout(() => {
+    document.getElementById("reel-1").classList.remove("spinning");
+    let r1 = reels[Math.floor(Math.random() * reels.length)];
+    document.getElementById("reel-1").innerText = r1;
+
+    setTimeout(() => {
+      document.getElementById("reel-2").classList.remove("spinning");
+      let r2 = reels[Math.floor(Math.random() * reels.length)];
+      document.getElementById("reel-2").innerText = r2;
+
+      setTimeout(() => {
+        document.getElementById("reel-3").classList.remove("spinning");
+        let r3 = reels[Math.floor(Math.random() * reels.length)];
+        document.getElementById("reel-3").innerText = r3;
+
+        // Рахуємо виграш
+        let resWin = false;
+        let gain = 0;
+
+        if (r1 === r2 && r2 === r3) {
+          resWin = true;
+          gain = bet * 5;
+        } else if (r1 === r2 || r2 === r3 || r1 === r3) {
+          resWin = true;
+          gain = bet * 1.5;
+        }
+
+        let resBox = document.getElementById("casino-res");
+        let outcomeText = document.getElementById("c-out");
+        let amtText = document.getElementById("c-amt");
+
+        resBox.style.display = "block";
+        if (resWin) {
+          user.coins += Math.floor(gain);
+          outcomeText.innerText = "🎰 ВИГРАШ!";
+          amtText.className = "gr-amount win";
+          amtText.innerText = "+" + Math.floor(gain).toLocaleString() + " 🪙";
+        } else {
+          outcomeText.innerText = "📉 ПРОГРАШ";
+          amtText.className = "gr-amount loss";
+          amtText.innerText = "-" + bet.toLocaleString() + " 🪙";
+        }
+
+        updateUI();
+      }, 300);
+    }, 300);
+  }, 600);
+}
+
+// 🔮 ORACLE OF LUCK
+function consultOracle() {
+  let luckRoll = Math.floor(Math.random() * 100);
+  document.getElementById("oracle-val").innerText = luckRoll + "%";
+  document.getElementById("oracle-fill").style.width = luckRoll + "%";
+  
+  let msg = "Магматичні пласти стабільні. Твоя удача базова.";
+  if (luckRoll > 80) msg = "🔥 Божественний приплив енергії! Наступні кліки мають підвищений шанс на рубіни!";
+  else if (luckRoll > 50) msg = "✨ Хороші вібрації надр. Твоя удача на висоті.";
+  else if (luckRoll < 20) msg = "⚠️ Темна матерія згущується. Будь обережний в забої.";
+
+  document.getElementById("oracle-msg").innerText = msg;
+  user.luck = 10 + Math.floor(luckRoll / 5);
+  updateUI();
+}
+
+// 🥚 CLICK THE DRAGON EGG
+function clickEgg() {
+  if (eggHp <= 0) return;
+  eggHp--;
+  let img = document.getElementById("egg-icon");
+  img.classList.add("shake");
+  setTimeout(() => img.classList.remove("shake"), 400);
+
+  document.getElementById("egg-hp").innerText = eggHp + " / 15";
+  document.getElementById("egg-fill").style.width = (eggHp / 15) * 100 + "%";
+
+  if (eggHp === 0) {
+    img.innerText = "🦖";
+    user.coins += 50000;
+    showToast("🎉 ЯЙЦЕ РОЗБИТО! Звідти вилупився Дракон! +50,000 🪙");
+    updateUI();
+    setTimeout(() => {
+      eggHp = 15;
+      img.innerText = "🥚";
+      document.getElementById("egg-hp").innerText = "15 / 15";
+      document.getElementById("egg-fill").style.width = "100%";
+    }, 5000);
+  }
+}
+
+// CLAIM DAILY BONUS
+function claimDailyBonus() {
+  user.coins += 25000;
+  showToast("🎁 Щоденний бонус отримано: +25,000 🪙!");
+  document.getElementById("btn-claim-bonus").disabled = true;
+  document.getElementById("btn-claim-bonus").innerText = "ЗАБРАНО ✅";
+  updateUI();
+}
+
+// LEADERBOARDS & CLANS RENDERING
+function renderTop() {
+  let t = document.getElementById("extra-top-view");
+  t.innerHTML = `
+    <div class="section-title">🏆 Еліта Гірників</div>
+    <div class="top-item"><span class="top-medal">🥇</span><div class="top-info"><div class="top-name">Клан-Мастер Х</div><div class="top-sub">Рівень 84</div></div><div class="top-val">1.2B 🪙</div></div>
+    <div class="top-item"><span class="top-medal">🥈</span><div class="top-info"><div class="top-name">Шахтар-Ветеран</div><div class="top-sub">Рівень 62</div></div><div class="top-val">450М 🪙</div></div>
+    <div class="top-item"><span class="top-medal">🥉</span><div class="top-info"><div class="top-name">CryptoDrill</div><div class="top-sub">Рівень 51</div></div><div class="top-val">120М 🪙</div></div>
+  `;
+}
+
+function renderAuction() {
+  let a = document.getElementById("extra-auc-view");
+  a.innerHTML = `
+    <div class="section-title">⚖️ Активні лоти</div>
+    <div class="auc-item">
+      <div class="auc-ore">✨</div>
+      <div class="auc-info"><div class="auc-name">Божественне сяйво (1 шт)</div><div class="auc-seller">Продавець: @Minter_Pro</div></div>
+      <div class="auc-right"><div class="auc-price">15,000,000 🪙</div><button class="btn-auc-buy" onclick="showToast('❌ Нестача коштів на аукціоні!')">ВИКУПИТИ</button></div>
+    </div>
+  `;
+}
+
+function switchExtraTab(tab) {
+  currentExtraTab = tab;
+  document.getElementById("extra-craft-view").style.display = tab === 'craft' ? 'block' : 'none';
+  document.getElementById("extra-top-view").style.display = tab === 'top' ? 'block' : 'none';
+  document.getElementById("extra-auc-view").style.display = tab === 'auc' ? 'block' : 'none';
+  
+  document.getElementById("stab-craft").classList.remove("active");
+  document.getElementById("stab-top").classList.remove("active");
+  document.getElementById("stab-auc").classList.remove("active");
+  document.getElementById("stab-" + tab).classList.add("active");
+}
+
+function joinDefaultClan() {
+  user.clan = "IRON FORGE";
+  document.getElementById("clan-section-none").style.display = "none";
+  document.getElementById("clan-section-joined").style.display = "block";
+  
+  let mList = document.getElementById("clan-members");
+  mList.innerHTML = `
+    <div class="member-item"><div class="member-ava">👑</div><div class="member-info"><div class="member-name">Ти (Гірник)</div><div class="member-rank">Офіцер синдикату</div></div></div>
+    <div class="member-item"><div class="member-ava">⛏️</div><div class="member-info"><div class="member-name">Дриль-Борз</div><div class="member-rank">Рядовий шахтар</div></div></div>
+  `;
+  showToast("🏰 Ти успішно вступив у клан IRON FORGE!");
+}
+
+// SPARKLINES SPARK CHART FOR RETAIL MULTIPLIER
+function generateSparkline() {
+  let chart = document.getElementById("spark-chart");
+  chart.innerHTML = "";
+  marketHistory.forEach((val, index) => {
+    let h = (val / 1.5) * 100;
+    let bar = document.createElement("div");
+    bar.className = "spark-bar" + (index === marketHistory.length - 1 ? " active" : "");
+    bar.style.height = h + "%";
+    chart.appendChild(bar);
+  });
+}
+
+// PARTICLES & NOTIFICATIONS VISUAL EFFECTS
+function showToast(text, isDanger = false) {
+  let t = document.getElementById("toast");
+  t.innerText = text;
+  t.style.borderColor = isDanger ? "var(--red)" : "var(--border)";
+  t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), 2500);
+}
+
+function createParticles(x, y, emoji) {
+  let container = document.getElementById("particles");
+  for (let i = 0; i < 4; i++) {
+    let p = document.createElement("div");
+    p.className = "particle";
+    p.innerText = emoji;
+    p.style.left = (x + (Math.random() * 40 - 20)) + "px";
+    p.style.top = (y + (Math.random() * 40 - 20)) + "px";
+    container.appendChild(p);
+    setTimeout(() => p.remove(), 800);
+  }
+}
+
+function triggerScreenShake() {
+  let b = document.body;
+  b.style.transition = "transform 0.05s linear";
+  let shakes = [10, -10, 8, -8, 5, -5, 0];
+  shakes.forEach((s, idx) => {
+    setTimeout(() => {
+      b.style.transform = `translateX(${s}px) translateY(${s/2}px)`;
+    }, idx * 50);
+  });
+}
+
+function triggerEpicFlash() {
+  let f = document.createElement("div");
+  f.style.position = "fixed";
+  f.style.inset = "0";
+  f.style.background = "radial-gradient(circle, rgba(245,166,35,0.8) 0%, transparent 80%)";
+  f.style.zIndex = "999";
+  f.style.pointerEvents = "none";
+  f.style.opacity = "1";
+  f.style.transition = "opacity 0.6s ease";
+  document.body.appendChild(f);
+  setTimeout(() => {
+    f.style.opacity = "0";
+    setTimeout(() => f.remove(), 600);
+  }, 50);
+}
+
+// Ринковий цикл коливання цін (кожні 15 секунд міняється множник)
+setInterval(() => {
+  marketMultiplier = parseFloat((0.7 + Math.random() * 0.7).toFixed(2));
+  marketHistory.push(marketMultiplier);
+  if (marketHistory.length > 15) marketHistory.shift();
+  
+  let st = document.getElementById("market-status");
+  let multText = document.getElementById("market-mult");
+  multText.innerText = "x" + marketMultiplier.toFixed(2);
+  
+  if (marketMultiplier > 1.2) {
+    st.innerText = "🔥 БУМ";
+    st.className = "rate-status boom";
+  } else if (marketMultiplier < 0.8) {
+    st.innerText = "📉 КРАШ";
+    st.className = "rate-status crash";
+  } else {
+    st.innerText = "СТАБІЛЬНИЙ";
+    st.className = "rate-status stable";
+  }
+  generateSparkline();
+  if (document.getElementById("page-inventory").classList.contains("active")) {
+    renderInventory();
+  }
+}, 15000);
+
+// Стартуємо гру
+window.onload = init;
+</script>
+</body>
+</html>
